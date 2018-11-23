@@ -12,6 +12,16 @@ float radius = 1.0;       //控制物体大小
 float rotateAngle = 0.0;  //控制左右旋转
 float upAngle = 0.0;      //控制上下旋转
 
+// 透视投影参数
+float fov = 45.0;
+float aspect = 1.0;
+
+// 正交投影参数
+float scale = 2.5;
+
+//投影选择参数
+int matrixIndex = 0;
+
 // 记录三角面片中的顶点序列的结构体
 typedef struct vIndex {
 	unsigned int a, b, c;
@@ -197,10 +207,12 @@ void display() {   //这里才用到片元着色器
 
 	//创建一个单位矩阵
 	mat4 modelMatrix = mat4(1.0);
-	//计算观察矩阵
 	mat4 viewMatrix = LookAt(eye, at, up);
-	// 调用函数传入三种变化的变化量，计算变化矩阵
-	mat4 modelViewMatrix = viewMatrix * modelMatrix;
+	//其实投影矩阵可以理解成将物体的图像放大或缩小显示在视见体内
+	//mat4 projMatrix = Ortho(-scale, scale, -scale, scale, -scale, scale);
+	mat4 projMatrix = Perspective(fov, aspect, 0.1, 100.0);
+	// 计算最终的投影变换矩阵——投影矩阵*相机矩阵*模型矩阵
+	mat4 modelViewMatrix = projMatrix * viewMatrix * modelMatrix;
 	glUniformMatrix4fv(mLocation, 1, GL_TRUE, modelViewMatrix);
 
 	//绘制顶点
@@ -211,7 +223,7 @@ void display() {   //这里才用到片元着色器
 int main(int argc, char **argv) {
 	glutInit(&argc, argv);
 
-	//窗口显示模式支持深度测试
+	//窗口显示模式支持深度缓存
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(600, 600);
 	glutCreateWindow("读取off文件引入3D模型");
@@ -229,8 +241,8 @@ int main(int argc, char **argv) {
 	glutKeyboardFunc(keyboard);
 
 	//启用深度测试
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);  //不知为啥不使用这句话的话，只能看见单面
+	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);  //面剔除，默认去除掉所有不是正面朝向的面，有时候可以替代深度测试
 	glutMainLoop();
 	return 0;
 }
