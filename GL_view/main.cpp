@@ -7,6 +7,11 @@
 
 using namespace std;
 
+// 相机参数
+float radius = 1.0;       //控制物体大小
+float rotateAngle = 0.0;  //控制左右旋转
+float upAngle = 0.0;      //控制上下旋转
+
 // 记录三角面片中的顶点序列的结构体
 typedef struct vIndex {
 	unsigned int a, b, c;
@@ -36,58 +41,55 @@ const vec3 vertex_colors[8] = {
 
 GLuint mainWin;                                //主窗口
 GLint mLocation;                          //矩阵位置
-int axis = 0;
-double theta[3] = {0,0,0};  //三个方向的旋转角度
-double scale = 1;           //进行放大缩小
-vec3 translateTheta(0.0, 0.0, 0.0); //进行左右平移，所以只需要变化x值就行
+
 
 //-----------------------------------------------以下是实现
-void mouse(int button, int state, int x, int y) {
-	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-		//屏幕原点在左上角，即（0，0），我们可以根据屏幕坐标做一些文章
-		if (x - 300 > 0) { //300是屏幕宽度的一半
-			axis = 0;
-		}
-		else
-		{
-			axis = 1;
-		}
-	}
-}
-
-void spinCube() {
-	theta[axis] += 0.1;
-	if (theta[axis] > 360.0) theta[axis] -= 360.0;
+void idle(void)
+{
+	upAngle += 0.01;
 	glutPostRedisplay();
 }
 
-void diration(int key, int x, int y) {
-	if (key == GLUT_KEY_LEFT) translateTheta.x += 0.1;
-	if (key == GLUT_KEY_RIGHT) translateTheta.x -= 0.1;
-	//当缩放到负数的时候，图像成镜像图
-	if (key == GLUT_KEY_UP) scale -= 0.1;
-	if (key == GLUT_KEY_DOWN) scale += 0.1;
+void mouse(int button, int state, int x, int y) {
+	if (button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN) {
+		// 按下鼠标中键，指定当没有其他事件处理时，去调用idleFunction()这个函数
+		glutIdleFunc(idle);
+	}
+	else if (button == GLUT_MIDDLE_BUTTON && state == GLUT_UP) {
+		// 释放鼠标中键，解除调用
+		glutIdleFunc(NULL);
+	}
 }
 
 void keyboard(unsigned char key, int x, int y) {
 	switch (key)
 	{
-	case 't':
-		glutIdleFunc(spinCube);
+	case 033:	// ESC键 和 'q' 键退出
+		exit(EXIT_SUCCESS);
 		break;
-	case 'p':
-		glutIdleFunc(NULL);
+	case 'q':
+		exit(EXIT_SUCCESS);
 		break;
-	case 'x':
-		axis = 0;
+		// 按键改变radius, rotateAngle, upAngle参数
+	case 'a':
+		radius += 0.1;
 		break;
-	case 'y':
-		axis = 1;
+	case 's':
+		radius -= 0.1;
 		break;
-	case 'z':
-		axis = 2;
+	case 'd':
+		rotateAngle += 0.1;
 		break;
+	case 'f':
+		rotateAngle -= 0.1;
+		break;
+	case 'g':
+		upAngle += 0.1;
+		break;
+	case 'h':
+		upAngle -= 0.1;
 	}
+	glutPostRedisplay();
 }
 
 void read_off(string filename) {
@@ -174,7 +176,7 @@ void init() {
 	glVertexAttribPointer(cLocation, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(points.size() * sizeof(vec3)));
 
 	// 获得矩阵存储位置
-	mLocation = glGetUniformLocation(program, "rotation");  
+	mLocation = glGetUniformLocation(program, "modelViewMatrix");  
 
 	//黑色背景
 	glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -184,15 +186,22 @@ void display() {   //这里才用到片元着色器
 	//清理窗口，包括颜色缓存和深度缓存
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//创建一个单位矩阵，过会用
-	mat4 m(1.0, 0.0, 0.0, 0.0,
-		   0.0, 1.0, 0.0, 0.0,
-		   0.0, 0.0, 1.0, 0.0,
-		   0.0, 0.0, 0.0, 1.0);
+	//设置相机参数，通过交互控制参数改变，变化相机位置，即eye向量，默认为（1，0，0）
+	float x = radius * cos(upAngle);
+	float y = radius * sin(upAngle) * cos(rotateAngle);
+	float z = radius * sin(upAngle) * sin(rotateAngle);
 
+	vec4 eye = vec4(x, y, z, 1);  //这是眼睛的位置
+	vec4 at =  vec4(0, 0, 0, 1);  //模型的中心
+	vec4 up =  vec4(0, 1, 0, 0);  //向上的位置
+
+	//创建一个单位矩阵
+	mat4 modelMatrix = mat4(1.0);
+	//计算观察矩阵
+	mat4 viewMatrix = LookAt(eye, at, up);
 	// 调用函数传入三种变化的变化量，计算变化矩阵
-	m = RotateX(theta[0])*RotateY(theta[1])*RotateZ(theta[2]) * Scale(scale) * Translate(translateTheta)* m;
-	glUniformMatrix4fv(mLocation, 1, GL_TRUE, m);
+	mat4 modelViewMatrix = viewMatrix * modelMatrix;
+	glUniformMatrix4fv(mLocation, 1, GL_TRUE, modelViewMatrix);
 
 	//绘制顶点
 	glDrawArrays(GL_TRIANGLES, 0, points.size()); //每三个点为一个三角形，绘制正方体
@@ -216,14 +225,12 @@ int main(int argc, char **argv) {
 
 	init();
 	glutDisplayFunc(display);
-	glutIdleFunc(spinCube);
 	glutMouseFunc(mouse);
 	glutKeyboardFunc(keyboard);
-	glutSpecialFunc(diration);
 
 	//启用深度测试
 	glEnable(GL_DEPTH_TEST);
-
+	glEnable(GL_CULL_FACE);  //不知为啥不使用这句话的话，只能看见单面
 	glutMainLoop();
 	return 0;
 }
