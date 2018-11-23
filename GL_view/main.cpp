@@ -183,7 +183,7 @@ void init() {
 	glVertexAttribPointer(cLocation, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(points.size() * sizeof(vec3)));
 
 	// »ñµÃ¾ØÕó´æ´¢Î»ÖÃ
-	mLocation = glGetUniformLocation(program, "modelViewMatrix");  
+	mLocation = glGetUniformLocation(program, "projModelViewMatrix");  
 
 	//ºÚÉ«±³¾°
 	glClearColor(0.0, 0.0, 0.0, 1.0);
