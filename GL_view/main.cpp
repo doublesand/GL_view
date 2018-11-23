@@ -17,7 +17,7 @@ float fov = 45.0;
 float aspect = 1.0;
 
 // 正交投影参数
-float scale = 2.5;
+float scale = 1.5;
 
 //投影选择参数
 int matrixIndex = 0;
@@ -56,18 +56,15 @@ GLint mLocation;                          //矩阵位置
 //-----------------------------------------------以下是实现
 void idle(void)
 {
-	upAngle += 0.01;
 	glutPostRedisplay();
 }
 
 void mouse(int button, int state, int x, int y) {
 	if (button == GLUT_MIDDLE_BUTTON && state == GLUT_DOWN) {
-		// 按下鼠标中键，指定当没有其他事件处理时，去调用idleFunction()这个函数
-		glutIdleFunc(idle);
+		matrixIndex = 1;
 	}
 	else if (button == GLUT_MIDDLE_BUTTON && state == GLUT_UP) {
-		// 释放鼠标中键，解除调用
-		glutIdleFunc(NULL);
+		matrixIndex = 0;
 	}
 }
 
@@ -209,8 +206,10 @@ void display() {   //这里才用到片元着色器
 	mat4 modelMatrix = mat4(1.0);
 	mat4 viewMatrix = LookAt(eye, at, up);
 	//其实投影矩阵可以理解成将物体的图像放大或缩小显示在视见体内
-	//mat4 projMatrix = Ortho(-scale, scale, -scale, scale, -scale, scale);
-	mat4 projMatrix = Perspective(fov, aspect, 0.1, 100.0);
+	mat4 projMatrix = Ortho(-scale, scale, -scale, scale, -scale, scale);
+	if (matrixIndex == 0) {  //控制投影变换
+		projMatrix = Perspective(fov, aspect, 0.1, 100.0);
+	}
 	// 计算最终的投影变换矩阵——投影矩阵*相机矩阵*模型矩阵
 	mat4 modelViewMatrix = projMatrix * viewMatrix * modelMatrix;
 	glUniformMatrix4fv(mLocation, 1, GL_TRUE, modelViewMatrix);
@@ -239,6 +238,7 @@ int main(int argc, char **argv) {
 	glutDisplayFunc(display);
 	glutMouseFunc(mouse);
 	glutKeyboardFunc(keyboard);
+	glutIdleFunc(idle);
 
 	//启用深度测试
 	//glEnable(GL_DEPTH_TEST);
